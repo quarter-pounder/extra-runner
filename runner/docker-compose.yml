@@ -1,0 +1,27 @@
+services:
+  runner:
+    image: myoung34/github-runner:latest
+    container_name: github-runner
+    restart: unless-stopped
+    environment:
+      - RUNNER_NAME=${RUNNER_NAME}
+      - RUNNER_TOKEN=${RUNNER_TOKEN}
+      - RUNNER_LABELS=${RUNNER_LABELS}
+      - DOCKER_ENABLED=${DOCKER_ENABLED}
+      - RUNNER_ORG=${RUNNER_ORG:-}
+      - RUNNER_REPO=${RUNNER_REPO:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - runner-data:/home/runner
+    env_file:
+      - .env
+    networks:
+      - runner-net
+
+volumes:
+  runner-data:
+
+networks:
+  runner-net:
+    driver: bridge
+

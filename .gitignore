@@ -1,0 +1,22 @@
+# Environment files
+.env
+*.env
+!*.env.example
+
+# Runner data
+runner/runner-data/
+runner/_work/
+runners/*/runner-data/
+runners/*/_work/
+
+# Backup files
+*.bak
+*.bak.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+

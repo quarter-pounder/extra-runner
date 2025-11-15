@@ -31,20 +31,82 @@ sudo ./install.sh
 - GitHub personal access token or organization admin access
 - Network connectivity
 
+## Repository Structure
+
+```
+extra-runners/
+├── bootstrap/
+│   ├── windows/          # Pre-install Windows investigation
+│   │   └── trust-boundary.ps1
+│   ├── linux/           # Ubuntu OS installation and cleanup
+│   │   ├── cleanup-laptop.sh
+│   │   ├── setup-ubuntu.sh
+│   │   ├── preflight.sh
+│   │   ├── install-core.sh
+│   │   ├── install-docker.sh
+│   │   ├── optimize-docker.sh
+│   │   ├── verify.sh
+│   │   └── security-hardening.sh
+│   ├── services/        # Service installation
+│   │   ├── setup-runner.sh
+│   │   └── setup-node-exporter.sh
+│   └── utils.sh         # Shared utilities
+├── install.sh           # Full installation (OS + Services)
+├── install-os.sh        # OS installation only
+├── install-services.sh  # Services installation only
+└── runner/              # Runner configuration
+```
+
 ## Setup Process
 
-The bootstrap process runs the following scripts in order:
+### Phase 1: Windows Investigation (Before Linux Installation)
 
-1. **00-cleanup-laptop.sh** - Investigate vendor-specific configurations (kernels, applets, DNS, partitions). Runs in investigate-only mode by default - shows findings without making changes.
-2. **01-setup-ubuntu.sh** - Initial Ubuntu OS configuration (timezone, locale, user setup, security updates)
-3. **02-preflight.sh** - System checks (x86_64 architecture, Ubuntu version)
-4. **03-install-core.sh** - Core system packages
-5. **04-install-docker.sh** - Docker installation
-6. **05-optimize-docker.sh** - Docker optimizations for CI/CD
-7. **06-verify.sh** - Verification checks
-8. **07-security-hardening.sh** - SSH and fail2ban configuration
-9. **08-setup-runner.sh** - GitHub Actions runner setup
-10. **09-setup-node-exporter.sh** - Optional Node Exporter (for monitoring)
+On Windows, investigate OEM/recovery partitions and firmware:
+
+```powershell
+# As Administrator
+.\bootstrap\windows\trust-boundary.ps1
+
+# With cleanup (soft - disables WinRE, services, tasks)
+.\bootstrap\windows\trust-boundary.ps1 -Cleanup
+```
+
+**Warning**: If critical findings are detected, the script will warn you NOT to install Linux yet. Follow the recommended steps (full disk wipe, BIOS settings, etc.) before proceeding.
+
+### Phase 2: Linux OS Installation
+
+After installing Ubuntu, run:
+
+```bash
+sudo ./install-os.sh
+```
+
+This runs:
+1. **cleanup-laptop.sh** - Investigate vendor-specific configurations (investigate-only by default)
+2. **setup-ubuntu.sh** - Initial Ubuntu OS configuration
+3. **preflight.sh** - System checks (x86_64 architecture, Ubuntu version)
+4. **install-core.sh** - Core system packages
+5. **install-docker.sh** - Docker installation
+6. **optimize-docker.sh** - Docker optimizations for CI/CD
+7. **verify.sh** - Verification checks
+8. **security-hardening.sh** - SSH and fail2ban configuration
+
+### Phase 3: Services Installation
+
+After OS is configured, install services:
+
+```bash
+export RUNNER_TOKEN="your_token"
+export RUNNER_NAME="laptop-runner-01"
+export RUNNER_ORG="your-org"  # or RUNNER_REPO="org/repo"
+sudo ./install-services.sh
+```
+
+Or install everything at once:
+
+```bash
+sudo ./install.sh  # Runs install-os.sh then install-services.sh
+```
 
 ## Configuration
 

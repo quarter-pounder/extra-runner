@@ -22,6 +22,7 @@ apt-get install -y -qq \
     curl \
     wget \
     git \
+    openssh-server \
     ca-certificates \
     gnupg \
     lsb-release \

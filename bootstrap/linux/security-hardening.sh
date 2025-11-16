@@ -15,14 +15,44 @@ check_root
 log_info "Hardening SSH configuration..."
 
 SSH_CONFIG="/etc/ssh/sshd_config"
+# Ensure OpenSSH Server is installed and config exists
 if [[ ! -f "$SSH_CONFIG" ]]; then
-    error_exit "SSH config file not found: $SSH_CONFIG"
+    log_warn "SSH config not found at: $SSH_CONFIG. Installing openssh-server..."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq || true
+    apt-get install -y -qq openssh-server || {
+        error_exit "Failed to install openssh-server"
+    }
+    # Create minimal hardened sshd_config if still missing
+    if [[ ! -f "$SSH_CONFIG" ]]; then
+        log_info "Creating minimal SSH configuration at $SSH_CONFIG"
+        cat > "$SSH_CONFIG" <<'EOF'
+Port 22
+Protocol 2
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+ChallengeResponseAuthentication no
+UsePAM yes
+X11Forwarding no
+AllowTcpForwarding no
+ClientAliveInterval 300
+ClientAliveCountMax 2
+AllowAgentForwarding no
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+Subsystem sftp /usr/lib/openssh/sftp-server
+EOF
+    fi
 fi
 
 # Backup SSH config
-DATE_CMD=$(get_command_path date || echo "date")
-CP_CMD=$(get_command_path cp || echo "cp")
-$CP_CMD "$SSH_CONFIG" "${SSH_CONFIG}.bak.$($DATE_CMD +%Y%m%d_%H%M%S)"
+if [[ -f "$SSH_CONFIG" ]]; then
+    DATE_CMD=$(get_command_path date || echo "date")
+    CP_CMD=$(get_command_path cp || echo "cp")
+    $CP_CMD "$SSH_CONFIG" "${SSH_CONFIG}.bak.$($DATE_CMD +%Y%m%d_%H%M%S)"
+fi
 
 # Apply SSH hardening settings
 log_info "Applying SSH security settings..."
@@ -44,15 +74,22 @@ if ! grep -q "^PubkeyAuthentication" "$SSH_CONFIG"; then
     echo "PubkeyAuthentication yes" >> "$SSH_CONFIG"
 fi
 
+# Determine SSH service name (Ubuntu uses 'ssh')
+SSH_SERVICE="ssh"
+if systemctl list-unit-files | grep -q "^sshd\\.service"; then
+    SSH_SERVICE="sshd"
+fi
+
 log_warn "SSH password authentication disabled. Ensure SSH keys are configured before restarting SSH."
 read -p "Continue with SSH restart? (y/N) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    systemctl restart sshd
-    wait_for_service sshd
+    systemctl enable "$SSH_SERVICE" 2>/dev/null || true
+    systemctl restart "$SSH_SERVICE"
+    wait_for_service "$SSH_SERVICE"
     log_success "SSH service restarted with hardened configuration"
 else
-    log_warn "SSH restart skipped. Restart manually when ready: sudo systemctl restart sshd"
+    log_warn "SSH restart skipped. Restart manually when ready: sudo systemctl restart $SSH_SERVICE"
 fi
 
 # fail2ban configuration

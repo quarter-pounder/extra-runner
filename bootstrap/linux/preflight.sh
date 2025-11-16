@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BOOTSTRAP_DIR="$(cd "$SCRIPT_DIR/.." source "${SCRIPT_DIR}/utils.sh"source "${SCRIPT_DIR}/utils.sh" pwd)"
+BOOTSTRAP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "${BOOTSTRAP_DIR}/utils.sh"
 
 log_info "Running preflight checks..."

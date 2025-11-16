@@ -67,10 +67,38 @@ fi
 log_info "Scanning for vendor applets..."
 VENDOR_APPLETS=()
 
+# Critical system binaries to never delete
+readonly CRITICAL_BINARIES=(
+    "/usr/bin" "/usr/local/bin" "/opt" "/bin" "/sbin"
+    "cp" "mv" "rm" "date" "ls" "cat" "grep" "sed" "awk"
+    "bash" "sh" "systemctl" "apt-get" "dpkg"
+)
+
 # Use process substitution to avoid subshell issue
 while IFS= read -r -d $'\0' file; do
+    # Safety check: must be a regular file, not a directory
+    [[ ! -f "$file" ]] && continue
+
+    # Safety check: must be absolute path
+    [[ "$file" != /* ]] && continue
+
+    # Safety check: don't match directories
+    [[ "$file" == */ ]] && continue
+
     bn="$(basename "$file")"
-    if echo "$bn" | safe_grep_i "vendor|oem|manufacturer|brand|util|control"; then
+
+    # Safety check: skip critical system binaries
+    skip=false
+    for critical in "${CRITICAL_BINARIES[@]}"; do
+        if [[ "$file" == "$critical" ]] || [[ "$bn" == "$critical" ]]; then
+            skip=true
+            break
+        fi
+    done
+    [[ "$skip" == "true" ]] && continue
+
+    # Match vendor-specific patterns (more specific)
+    if echo "$bn" | safe_grep_i "vendor|oem|manufacturer|brand"; then
         VENDOR_APPLETS+=("$file")
     fi
 done < <(safe_find_exec /usr/bin /usr/local/bin /opt)
@@ -362,8 +390,26 @@ fi
 if (( ${#VENDOR_APPLETS[@]} > 0 )); then
     log_info "Removing vendor applets..."
     for file in "${VENDOR_APPLETS[@]}"; do
-        log_info "Deleting $file"
-        rm -f "$file" 2>/dev/null || true
+        # Additional safety checks before deletion
+        if [[ ! -f "$file" ]]; then
+            log_warn "Skipping $file (not a regular file)"
+            continue
+        fi
+
+        # Double-check it's not a critical path
+        if [[ "$file" == "/usr/bin" ]] || [[ "$file" == "/usr/local/bin" ]] || [[ "$file" == "/opt" ]] || [[ "$file" == "/bin" ]] || [[ "$file" == "/sbin" ]]; then
+            log_error "CRITICAL: Attempted to delete directory $file - ABORTED"
+            continue
+        fi
+
+        # Only delete if it looks like a vendor file (final check)
+        bn="$(basename "$file")"
+        if echo "$bn" | safe_grep_i "vendor|oem|manufacturer|brand"; then
+            log_info "Deleting $file"
+            rm -f "$file" 2>/dev/null || log_warn "Failed to delete $file"
+        else
+            log_warn "Skipping $file (doesn't match vendor pattern)"
+        fi
     done
 fi
 

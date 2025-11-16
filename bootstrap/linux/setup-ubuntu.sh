@@ -96,15 +96,92 @@ systemctl disable bluetooth.service 2>/dev/null || true
 systemctl disable ModemManager.service 2>/dev/null || true
 
 # Configure swap (if not already configured)
-if [[ -z "$(swapon --show)" ]]; then
+SWAP_ACTIVE=false
+if command_exists swapon; then
+    if swapon --show >/dev/null 2>&1 && [[ -n "$(swapon --show 2>/dev/null)" ]]; then
+        SWAP_ACTIVE=true
+        log_info "Swap already active:"
+        swapon --show 2>/dev/null || true
+    fi
+fi
+
+# Check if swapfile already exists
+if [[ -f /swapfile ]]; then
+    SWAP_ACTIVE=true
+    log_info "Swap file already exists: /swapfile"
+fi
+
+if [[ "$SWAP_ACTIVE" == "false" ]]; then
     log_info "Configuring swap..."
     SWAP_SIZE="${SWAP_SIZE:-2G}"
-    fallocate -l "$SWAP_SIZE" /swapfile
+
+    # Convert swap size to bytes for fallocate/dd
+    # Simple conversion: if ends with G, multiply by 1024*1024*1024
+    SWAP_BYTES=""
+    if [[ "$SWAP_SIZE" =~ ^([0-9]+)G$ ]]; then
+        SIZE_GB="${BASH_REMATCH[1]}"
+        SWAP_BYTES=$((SIZE_GB * 1024 * 1024 * 1024))
+    elif [[ "$SWAP_SIZE" =~ ^([0-9]+)M$ ]]; then
+        SIZE_MB="${BASH_REMATCH[1]}"
+        SWAP_BYTES=$((SIZE_MB * 1024 * 1024))
+    else
+        log_warn "Invalid swap size format: $SWAP_SIZE. Using 2G as default."
+        SWAP_BYTES=$((2 * 1024 * 1024 * 1024))
+    fi
+
+    # Try fallocate first, fall back to dd if it fails
+    if command_exists fallocate; then
+        if fallocate -l "$SWAP_SIZE" /swapfile 2>/dev/null; then
+            log_info "Created swap file using fallocate"
+        else
+            log_warn "fallocate failed, trying dd..."
+            DD_CMD=$(get_command_path dd || echo "dd")
+            $DD_CMD if=/dev/zero of=/swapfile bs=1M count=$((SWAP_BYTES / 1024 / 1024)) status=progress 2>/dev/null || {
+                log_error "Failed to create swap file"
+                exit 1
+            }
+        fi
+    else
+        log_info "fallocate not available, using dd..."
+        DD_CMD=$(get_command_path dd || echo "dd")
+        $DD_CMD if=/dev/zero of=/swapfile bs=1M count=$((SWAP_BYTES / 1024 / 1024)) status=progress 2>/dev/null || {
+            log_error "Failed to create swap file"
+            exit 1
+        }
+    fi
+
     chmod 600 /swapfile
-    mkswap /swapfile
-    swapon /swapfile
-    echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+    # Create swap filesystem
+    if command_exists mkswap; then
+        mkswap /swapfile || {
+            log_error "Failed to format swap file"
+            exit 1
+        }
+    else
+        log_error "mkswap command not found"
+        exit 1
+    fi
+
+    # Enable swap
+    if command_exists swapon; then
+        swapon /swapfile || {
+            log_error "Failed to enable swap"
+            exit 1
+        }
+    else
+        log_error "swapon command not found"
+        exit 1
+    fi
+
+    # Add to fstab if not already present
+    if ! grep -q '/swapfile' /etc/fstab 2>/dev/null; then
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+
     log_success "Swap configured: $SWAP_SIZE"
+else
+    log_info "Swap already configured, skipping"
 fi
 
 # Configure sysctl for better performance

@@ -386,7 +386,8 @@ fi
 
 if [[ -f /etc/default/grub ]]; then
     log_info "Sanitizing GRUB..."
-    cp /etc/default/grub /etc/default/grub.bak.$(date +%Y%m%d_%H%M%S)
+    BACKUP_FILE="/etc/default/grub.bak.$(date +%Y%m%d_%H%M%S)"
+    cp /etc/default/grub "$BACKUP_FILE"
 
     # Remove quiet and splash from GRUB_CMDLINE_LINUX_DEFAULT, normalize spaces
     sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ {

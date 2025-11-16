@@ -26,10 +26,13 @@ sudo ./install.sh
 
 ## Prerequisites
 
-- Ubuntu x86_64 (20.04 or later)
+- Ubuntu Server 24.04.3 LTS (noble), x86_64
 - Root/sudo access
 - GitHub personal access token or organization admin access
 - Network connectivity
+
+Note:
+- Newer kernels in 24.04.x include better drivers for certain Realtek and MediaTek network adapters. Older Ubuntu releases may lack stable support for these devices, leading to missing NICs or unreliable connectivity during install/boot. Using 24.04.3 LTS mitigates these issues.
 
 ## Repository Structure
 

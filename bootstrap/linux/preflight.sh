@@ -30,12 +30,22 @@ if [[ "$ID" != "ubuntu" ]]; then
 fi
 log_success "OS check passed: $ID $VERSION_ID"
 
-# Check Ubuntu version (20.04 or later)
-VERSION_NUM=$(echo "$VERSION_ID" | cut -d. -f1)
-if [[ $VERSION_NUM -lt 20 ]]; then
-    error_exit "Ubuntu 20.04 or later required. Found: $VERSION_ID"
+# Check Ubuntu version (24.04.x LTS recommended)
+MAJOR=$(echo "$VERSION_ID" | cut -d. -f1)
+MINOR=$(echo "$VERSION_ID" | cut -d. -f2)
+if [[ -z "$MAJOR" || -z "$MINOR" ]]; then
+    error_exit "Cannot parse Ubuntu version from VERSION_ID=$VERSION_ID"
 fi
-log_success "Ubuntu version check passed: $VERSION_ID"
+if [[ $MAJOR -lt 24 ]]; then
+    error_exit "Ubuntu 24.04 or later required. Found: $VERSION_ID"
+fi
+if [[ "$VERSION_CODENAME" != "noble" ]]; then
+    log_warn "Non-noble codename detected: $VERSION_CODENAME (expected noble for 24.04.x)"
+fi
+if [[ $MAJOR -eq 24 && $MINOR -ne 04 ]]; then
+    log_warn "Recommended: Ubuntu Server 24.04.x LTS (found $VERSION_ID)"
+fi
+log_success "Ubuntu version check passed: $VERSION_ID ($VERSION_CODENAME)"
 
 # Check internet connectivity
 if ! ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then

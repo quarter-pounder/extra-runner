@@ -36,4 +36,3 @@ apt-get install -y -qq \
     fail2ban
 
 log_success "Core packages installed successfully"
-

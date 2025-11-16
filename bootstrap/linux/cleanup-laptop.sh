@@ -67,41 +67,55 @@ fi
 log_info "Scanning for vendor applets..."
 VENDOR_APPLETS=()
 
-# Critical system binaries to never delete
-readonly CRITICAL_BINARIES=(
-    "/usr/bin" "/usr/local/bin" "/opt" "/bin" "/sbin"
-    "cp" "mv" "rm" "date" "ls" "cat" "grep" "sed" "awk"
-    "bash" "sh" "systemctl" "apt-get" "dpkg"
+# Blacklist: System-critical commands to NEVER touch
+readonly CRITICAL_BLACKLIST=(
+    "apt" "apt-get" "apt-cache" "dpkg" "rpm" "yum" "dnf" "pacman"
+    "cp" "mv" "rm" "date" "ls" "cat" "grep" "sed" "awk" "find"
+    "bash" "sh" "zsh" "systemctl" "systemd" "init" "kill" "killall"
+    "mount" "umount" "umount" "chmod" "chown" "sudo" "su"
+    "sshd" "ssh" "scp" "rsync" "tar" "gzip" "gunzip"
+)
+
+# Whitelist: Only scan specific vendor-related directories
+readonly VENDOR_DIRS=(
+    "/opt"
+    "/usr/local/bin"
 )
 
 # Use process substitution to avoid subshell issue
-while IFS= read -r -d $'\0' file; do
-    # Safety check: must be a regular file, not a directory
-    [[ ! -f "$file" ]] && continue
-
-    # Safety check: must be absolute path
-    [[ "$file" != /* ]] && continue
-
-    # Safety check: don't match directories
-    [[ "$file" == */ ]] && continue
-
-    bn="$(basename "$file")"
-
-    # Safety check: skip critical system binaries
-    skip=false
-    for critical in "${CRITICAL_BINARIES[@]}"; do
-        if [[ "$file" == "$critical" ]] || [[ "$bn" == "$critical" ]]; then
-            skip=true
-            break
-        fi
-    done
-    [[ "$skip" == "true" ]] && continue
-
-    # Match vendor-specific patterns (more specific)
-    if echo "$bn" | safe_grep_i "vendor|oem|manufacturer|brand"; then
-        VENDOR_APPLETS+=("$file")
+# Only scan /opt and /usr/local/bin (not /usr/bin which contains system binaries)
+for scan_dir in "${VENDOR_DIRS[@]}"; do
+    if [[ ! -d "$scan_dir" ]]; then
+        continue
     fi
-done < <(safe_find_exec /usr/bin /usr/local/bin /opt)
+
+    while IFS= read -r -d $'\0' file; do
+        # Safety check: must be a regular file, not a directory
+        [[ ! -f "$file" ]] && continue
+
+        # Safety check: must be absolute path
+        [[ "$file" != /* ]] && continue
+
+        bn="$(basename "$file")"
+
+        # Safety check: skip if basename matches any critical system command
+        skip=false
+        for critical in "${CRITICAL_BLACKLIST[@]}"; do
+            if [[ "$bn" == "$critical" ]] || [[ "$bn" == "${critical}-"* ]] || [[ "$bn" == *"-${critical}" ]]; then
+                skip=true
+                break
+            fi
+        done
+        [[ "$skip" == "true" ]] && continue
+
+        # Only match files with explicit vendor branding in name
+        # Must contain vendor/oem/manufacturer/brand AND be in a vendor directory
+        # Examples: lenovo-vantage, dell-utility, oem-config, brand-tool
+        if echo "$bn" | safe_grep_i "^[a-z0-9_-]*(vendor|oem|manufacturer|brand)[a-z0-9_-]*$|^(lenovo|dell|hp|asus|acer|toshiba|samsung|sony)[a-z0-9_-]*"; then
+            VENDOR_APPLETS+=("$file")
+        fi
+    done < <(safe_find_exec "$scan_dir")
+done
 
 if (( ${#VENDOR_APPLETS[@]} > 0 )); then
     log_warn "Potential vendor applets:"
@@ -396,19 +410,36 @@ if (( ${#VENDOR_APPLETS[@]} > 0 )); then
             continue
         fi
 
-        # Double-check it's not a critical path
-        if [[ "$file" == "/usr/bin" ]] || [[ "$file" == "/usr/local/bin" ]] || [[ "$file" == "/opt" ]] || [[ "$file" == "/bin" ]] || [[ "$file" == "/sbin" ]]; then
-            log_error "CRITICAL: Attempted to delete directory $file - ABORTED"
+        # Triple-check: must be in vendor directories only
+        if [[ "$file" != /opt/* ]] && [[ "$file" != /usr/local/bin/* ]]; then
+            log_error "CRITICAL: Attempted to delete file outside vendor directories: $file - ABORTED"
             continue
         fi
 
-        # Only delete if it looks like a vendor file (final check)
+        # Triple-check: must not be a directory
+        if [[ -d "$file" ]]; then
+            log_error "CRITICAL: Attempted to delete directory: $file - ABORTED"
+            continue
+        fi
+
+        # Triple-check: must not match critical blacklist
         bn="$(basename "$file")"
-        if echo "$bn" | safe_grep_i "vendor|oem|manufacturer|brand"; then
+        skip=false
+        for critical in "${CRITICAL_BLACKLIST[@]}"; do
+            if [[ "$bn" == "$critical" ]]; then
+                log_error "CRITICAL: Attempted to delete critical system binary: $file - ABORTED"
+                skip=true
+                break
+            fi
+        done
+        [[ "$skip" == "true" ]] && continue
+
+        # Final check: must match vendor pattern
+        if echo "$bn" | safe_grep_i "^[a-z0-9_-]*(vendor|oem|manufacturer|brand)[a-z0-9_-]*$|^(lenovo|dell|hp|asus|acer|toshiba|samsung|sony)[a-z0-9_-]*"; then
             log_info "Deleting $file"
             rm -f "$file" 2>/dev/null || log_warn "Failed to delete $file"
         else
-            log_warn "Skipping $file (doesn't match vendor pattern)"
+            log_warn "Skipping $file (doesn't match vendor pattern in final check)"
         fi
     done
 fi

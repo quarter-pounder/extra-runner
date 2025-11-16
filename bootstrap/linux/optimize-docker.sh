@@ -17,7 +17,9 @@ mkdir -p /etc/docker
 # Backup existing daemon.json if it exists
 if [[ -f /etc/docker/daemon.json ]]; then
     log_info "Backing up existing daemon.json..."
-    cp /etc/docker/daemon.json /etc/docker/daemon.json.bak.$(date +%Y%m%d_%H%M%S)
+    DATE_CMD=$(get_command_path date || echo "date")
+    CP_CMD=$(get_command_path cp || echo "cp")
+    $CP_CMD /etc/docker/daemon.json "/etc/docker/daemon.json.bak.$($DATE_CMD +%Y%m%d_%H%M%S)"
 fi
 
 # Configure Docker daemon

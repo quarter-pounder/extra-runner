@@ -45,6 +45,20 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Get full path to a command
+get_command_path() {
+    local cmd=$1
+    if [[ -x "/usr/bin/$cmd" ]]; then
+        echo "/usr/bin/$cmd"
+    elif [[ -x "/bin/$cmd" ]]; then
+        echo "/bin/$cmd"
+    elif command_exists "$cmd"; then
+        command -v "$cmd"
+    else
+        return 1
+    fi
+}
+
 # Check if systemd service is active
 service_is_active() {
     systemctl is-active --quiet "$1" 2>/dev/null

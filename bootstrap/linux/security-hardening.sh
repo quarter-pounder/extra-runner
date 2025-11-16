@@ -20,7 +20,9 @@ if [[ ! -f "$SSH_CONFIG" ]]; then
 fi
 
 # Backup SSH config
-cp "$SSH_CONFIG" "${SSH_CONFIG}.bak.$(date +%Y%m%d_%H%M%S)"
+DATE_CMD=$(get_command_path date || echo "date")
+CP_CMD=$(get_command_path cp || echo "cp")
+$CP_CMD "$SSH_CONFIG" "${SSH_CONFIG}.bak.$($DATE_CMD +%Y%m%d_%H%M%S)"
 
 # Apply SSH hardening settings
 log_info "Applying SSH security settings..."

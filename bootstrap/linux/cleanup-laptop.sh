@@ -387,17 +387,16 @@ fi
 if [[ -f /etc/default/grub ]]; then
     log_info "Sanitizing GRUB..."
     # Use full path to date command for reliability
-    if [[ -x /usr/bin/date ]]; then
-        BACKUP_FILE="/etc/default/grub.bak.$(/usr/bin/date +%Y%m%d_%H%M%S)"
-    elif [[ -x /bin/date ]]; then
-        BACKUP_FILE="/etc/default/grub.bak.$(/bin/date +%Y%m%d_%H%M%S)"
-    elif command_exists date; then
-        BACKUP_FILE="/etc/default/grub.bak.$(date +%Y%m%d_%H%M%S)"
+    DATE_CMD=$(get_command_path date 2>/dev/null || echo "")
+    if [[ -n "$DATE_CMD" ]]; then
+        BACKUP_FILE="/etc/default/grub.bak.$($DATE_CMD +%Y%m%d_%H%M%S)"
     else
         # Fallback: use epoch timestamp from file modification time
         BACKUP_FILE="/etc/default/grub.bak.$(stat -c %Y /etc/default/grub 2>/dev/null || echo 0)"
     fi
-    cp /etc/default/grub "$BACKUP_FILE"
+    # Use full path to cp command
+    CP_CMD=$(get_command_path cp || echo "cp")
+    $CP_CMD /etc/default/grub "$BACKUP_FILE"
 
     # Remove quiet and splash from GRUB_CMDLINE_LINUX_DEFAULT, normalize spaces
     sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ {

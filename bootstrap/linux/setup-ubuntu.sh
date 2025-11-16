@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BOOTSTRAP_DIR="$(cd "$SCRIPT_DIR/.." source "${SCRIPT_DIR}/utils.sh"source "${SCRIPT_DIR}/utils.sh" pwd)"
+BOOTSTRAP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "${BOOTSTRAP_DIR}/utils.sh"
 
 log_info "Setting up Ubuntu OS configuration..."
@@ -50,7 +50,8 @@ if [[ -n "${NEW_USER:-}" ]]; then
 
         # Copy SSH keys from root if they exist
         if [[ -f /root/.ssh/authorized_keys ]]; then
-            cp /root/.ssh/authorized_keys "/home/$NEW_USER/.ssh/authorized_keys"
+            CP_CMD=$(get_command_path cp || echo "cp")
+            $CP_CMD /root/.ssh/authorized_keys "/home/$NEW_USER/.ssh/authorized_keys"
             chown -R "$NEW_USER:$NEW_USER" "/home/$NEW_USER/.ssh"
             chmod 600 "/home/$NEW_USER/.ssh/authorized_keys"
             log_success "SSH keys copied to $NEW_USER"

@@ -125,7 +125,11 @@ Before running the setup, prepare:
    ```bash
    export RUNNER_NAME="laptop-runner-01"
    export RUNNER_TOKEN="runner_token_here"
-   export RUNNER_ORG="org"  # or RUNNER_REPO="org/repo"
+   export RUNNER_ORG="org"  # For organization-level runner
+   # OR for repository-level runner:
+   export RUNNER_REPO="org/repo"  # Will be converted to REPO_URL automatically
+   # OR use full URL:
+   export REPO_URL="https://github.com/org/repo"
    export RUNNER_LABELS="self-hosted,Linux,X64"
    export DOCKER_ENABLED="true"
    ```

@@ -113,10 +113,17 @@ mkdir -p "$RUNNER_DIR"
 
 # Create .env file
 log_info "Creating runner configuration..."
+# Convert repo format to REPO_URL
+if [[ "$REPO" =~ ^https?:// ]]; then
+    REPO_URL="$REPO"
+else
+    REPO_URL="https://github.com/$REPO"
+fi
+
 cat > "$RUNNER_DIR/.env" <<EOF
 RUNNER_NAME=$RUNNER_NAME
 RUNNER_TOKEN=$RUNNER_TOKEN
-RUNNER_REPO=$REPO
+REPO_URL=$REPO_URL
 RUNNER_LABELS=$RUNNER_LABELS
 DOCKER_ENABLED=$DOCKER_ENABLED
 EOF
@@ -134,7 +141,7 @@ services:
     environment:
       - RUNNER_NAME=${RUNNER_NAME}
       - RUNNER_TOKEN=${RUNNER_TOKEN}
-      - RUNNER_REPO=${RUNNER_REPO}
+      - REPO_URL=${REPO_URL}
       - RUNNER_LABELS=${RUNNER_LABELS}
       - DOCKER_ENABLED=${DOCKER_ENABLED}
     volumes:

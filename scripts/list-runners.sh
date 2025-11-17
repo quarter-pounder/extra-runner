@@ -24,11 +24,16 @@ if [[ -f "$MAIN_RUNNER_DIR/docker-compose.yml" ]]; then
     fi
     if [[ -f "$MAIN_RUNNER_DIR/.env" ]]; then
         RUNNER_NAME=$(grep "^RUNNER_NAME=" "$MAIN_RUNNER_DIR/.env" | cut -d= -f2)
-        RUNNER_REPO=$(grep "^RUNNER_REPO=" "$MAIN_RUNNER_DIR/.env" | cut -d= -f2 2>/dev/null || echo "N/A")
+        REPO_URL=$(grep "^REPO_URL=" "$MAIN_RUNNER_DIR/.env" | cut -d= -f2 2>/dev/null || echo "N/A")
         RUNNER_ORG=$(grep "^RUNNER_ORG=" "$MAIN_RUNNER_DIR/.env" | cut -d= -f2 2>/dev/null || echo "N/A")
         echo "  Name: $RUNNER_NAME"
-        if [[ "$RUNNER_REPO" != "N/A" ]]; then
-            echo "  Repo: $RUNNER_REPO"
+        if [[ "$REPO_URL" != "N/A" ]]; then
+            # Extract org/repo from URL if it's a full URL
+            if [[ "$REPO_URL" =~ https://github.com/(.+) ]]; then
+                echo "  Repo: ${BASH_REMATCH[1]}"
+            else
+                echo "  Repo: $REPO_URL"
+            fi
         elif [[ "$RUNNER_ORG" != "N/A" ]]; then
             echo "  Org: $RUNNER_ORG"
         fi
@@ -52,10 +57,15 @@ if [[ -d "$RUNNERS_DIR" ]] && [[ -n "$(ls -A "$RUNNERS_DIR" 2>/dev/null)" ]]; th
             fi
             if [[ -f "$runner_dir/.env" ]]; then
                 RUNNER_NAME=$(grep "^RUNNER_NAME=" "$runner_dir/.env" | cut -d= -f2)
-                RUNNER_REPO=$(grep "^RUNNER_REPO=" "$runner_dir/.env" | cut -d= -f2 2>/dev/null || echo "N/A")
+                REPO_URL=$(grep "^REPO_URL=" "$runner_dir/.env" | cut -d= -f2 2>/dev/null || echo "N/A")
                 echo "    Name: $RUNNER_NAME"
-                if [[ "$RUNNER_REPO" != "N/A" ]]; then
-                    echo "    Repo: $RUNNER_REPO"
+                if [[ "$REPO_URL" != "N/A" ]]; then
+                    # Extract org/repo from URL if it's a full URL
+                    if [[ "$REPO_URL" =~ https://github.com/(.+) ]]; then
+                        echo "    Repo: ${BASH_REMATCH[1]}"
+                    else
+                        echo "    Repo: $REPO_URL"
+                    fi
                 fi
             fi
         fi

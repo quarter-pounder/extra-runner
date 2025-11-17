@@ -9,7 +9,7 @@ services:
       - RUNNER_LABELS=${RUNNER_LABELS}
       - DOCKER_ENABLED=${DOCKER_ENABLED}
       - RUNNER_ORG=${RUNNER_ORG:-}
-      - RUNNER_REPO=${RUNNER_REPO:-}
+      - REPO_URL=${REPO_URL:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - runner-data:/home/runner

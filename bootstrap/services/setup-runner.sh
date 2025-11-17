@@ -56,7 +56,14 @@ EOF
 if [[ -n "${RUNNER_ORG:-}" ]]; then
     echo "RUNNER_ORG=$RUNNER_ORG" >> "$RUNNER_DIR/.env"
 else
-    echo "RUNNER_REPO=$RUNNER_REPO" >> "$RUNNER_DIR/.env"
+    # Convert RUNNER_REPO (org/repo) to REPO_URL (https://github.com/org/repo)
+    if [[ "$RUNNER_REPO" =~ ^https?:// ]]; then
+        # Already a full URL
+        echo "REPO_URL=$RUNNER_REPO" >> "$RUNNER_DIR/.env"
+    else
+        # Convert org/repo format to full URL
+        echo "REPO_URL=https://github.com/$RUNNER_REPO" >> "$RUNNER_DIR/.env"
+    fi
 fi
 
 # Copy docker-compose.yml if it doesn't exist
@@ -76,7 +83,7 @@ services:
       - RUNNER_LABELS=${RUNNER_LABELS}
       - DOCKER_ENABLED=${DOCKER_ENABLED}
       - RUNNER_ORG=${RUNNER_ORG:-}
-      - RUNNER_REPO=${RUNNER_REPO:-}
+      - REPO_URL=${REPO_URL:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - runner-data:/home/runner

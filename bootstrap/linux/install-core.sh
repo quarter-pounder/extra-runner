@@ -13,26 +13,22 @@ check_root
 
 # Update package lists
 log_info "Updating package lists..."
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
+dnf makecache -q
 
 # Install essential packages
 log_info "Installing essential packages..."
-apt-get install -y -qq \
+dnf install -y -q \
     curl \
     wget \
     git \
     openssh-server \
     ca-certificates \
-    gnupg \
-    lsb-release \
-    apt-transport-https \
-    software-properties-common \
+    gnupg2 \
     jq \
     unzip \
     htop \
     vim \
-    ufw \
+    firewalld \
     fail2ban
 
 log_success "Core packages installed successfully"

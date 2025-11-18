@@ -501,7 +501,12 @@ if [[ -n "${VENDOR_PLYMOUTH:-}" ]] && command_exists plymouth-set-default-theme;
     systemctl disable plymouth-quit-wait.service 2>/dev/null || true
     systemctl disable plymouth-read-write.service 2>/dev/null || true
     systemctl disable plymouth-start.service 2>/dev/null || true
-    apt-get remove -y -qq plymouth 2>/dev/null || true
+    # Try dnf first (Fedora), then apt-get (Ubuntu/Debian)
+    if command_exists dnf; then
+        dnf remove -y -q plymouth 2>/dev/null || true
+    elif command_exists apt-get; then
+        apt-get remove -y -qq plymouth 2>/dev/null || true
+    fi
 fi
 
 ################################################################################

@@ -18,9 +18,7 @@ SSH_CONFIG="/etc/ssh/sshd_config"
 # Ensure OpenSSH Server is installed and config exists
 if [[ ! -f "$SSH_CONFIG" ]]; then
     log_warn "SSH config not found at: $SSH_CONFIG. Installing openssh-server..."
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq || true
-    apt-get install -y -qq openssh-server || {
+    dnf install -y -q openssh-server || {
         error_exit "Failed to install openssh-server"
     }
     # Create minimal hardened sshd_config if still missing
@@ -74,10 +72,10 @@ if ! grep -q "^PubkeyAuthentication" "$SSH_CONFIG"; then
     echo "PubkeyAuthentication yes" >> "$SSH_CONFIG"
 fi
 
-# Determine SSH service name (Ubuntu uses 'ssh')
-SSH_SERVICE="ssh"
-if systemctl list-unit-files | grep -q "^sshd\\.service"; then
-    SSH_SERVICE="sshd"
+# Determine SSH service name (Fedora uses 'sshd')
+SSH_SERVICE="sshd"
+if systemctl list-unit-files | grep -q "^ssh\\.service"; then
+    SSH_SERVICE="ssh"
 fi
 
 log_warn "SSH password authentication disabled. Ensure SSH keys are configured before restarting SSH."
@@ -124,19 +122,24 @@ wait_for_service fail2ban
 
 log_success "fail2ban configured and started"
 
-# UFW firewall (basic setup)
-log_info "Configuring UFW firewall..."
+# firewalld firewall (basic setup)
+log_info "Configuring firewalld firewall..."
+
+# Ensure firewalld is installed and running
+systemctl enable firewalld
+systemctl start firewalld
+wait_for_service firewalld
 
 # Allow SSH
-ufw allow ssh >/dev/null 2>&1 || true
+firewall-cmd --permanent --add-service=ssh >/dev/null 2>&1 || true
 
 # Allow Node Exporter port (if monitoring is used)
-ufw allow 9100/tcp comment 'Node Exporter' >/dev/null 2>&1 || true
+firewall-cmd --permanent --add-port=9100/tcp >/dev/null 2>&1 || true
 
-# Enable UFW (non-interactive)
-echo "y" | ufw enable >/dev/null 2>&1 || true
+# Reload firewall
+firewall-cmd --reload >/dev/null 2>&1 || true
 
-log_success "UFW firewall configured"
+log_success "firewalld firewall configured"
 
 log_success "Security hardening completed"
 

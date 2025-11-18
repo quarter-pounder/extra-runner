@@ -24,48 +24,36 @@ fi
 
 # Remove old versions (ignore errors)
 log_info "Removing old Docker versions (if any)..."
-apt-get remove -y -qq docker docker-engine docker.io containerd runc 2>/dev/null || true
+dnf remove -y -q docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine 2>/dev/null || true
 
 # Ensure prerequisites
 log_info "Installing prerequisites..."
-apt-get update -qq
-apt-get install -y -qq ca-certificates curl gnupg lsb-release || true
+dnf install -y -q dnf-plugins-core
 
-# Add Docker's official GPG key
-log_info "Adding Docker GPG key..."
-install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-chmod a+r /etc/apt/keyrings/docker.gpg
+# Add Docker's official repository
+log_info "Adding Docker repository..."
+dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
 
-# Set up repository (use dpkg architecture and VERSION_CODENAME)
-log_info "Setting up Docker repository..."
-ARCH="$(dpkg --print-architecture)"
-CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
-echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${CODENAME} stable" \
-  | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Attempt to install Docker Engine from Docker repo
-log_info "Installing Docker Engine from Docker repo..."
+# Install Docker Engine
+log_info "Installing Docker Engine..."
 set +e
-apt-get update -qq
-apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+dnf install -y -q docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 DOCKER_INSTALL_RC=$?
 set -e
 
-# Fallbacks if upstream packages are unavailable for this release
+# Fallback if Docker repo fails
 if [[ $DOCKER_INSTALL_RC -ne 0 ]]; then
-    log_warn "Docker CE packages unavailable for ${CODENAME}/${ARCH}. Trying fallback options..."
-    # Try Ubuntu's docker.io package as a fallback
+    log_warn "Docker CE packages unavailable. Trying Fedora's docker package..."
     set +e
-    apt-get install -y -qq docker.io docker-compose-plugin
-    DOCKER_IO_RC=$?
+    dnf install -y -q docker docker-compose
+    DOCKER_FEDORA_RC=$?
     set -e
-    if [[ $DOCKER_IO_RC -ne 0 ]]; then
-        log_warn "Ubuntu docker.io fallback failed. Using Docker convenience script..."
+    if [[ $DOCKER_FEDORA_RC -ne 0 ]]; then
+        log_warn "Fedora docker package failed. Using Docker convenience script..."
         curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
         sh /tmp/get-docker.sh
     else
-        log_success "Installed docker.io from Ubuntu repositories"
+        log_success "Installed docker from Fedora repositories"
     fi
 fi
 

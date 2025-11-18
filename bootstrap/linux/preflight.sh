@@ -1,5 +1,5 @@
 #!/bin/bash
-# Preflight checks for x86_64 Ubuntu system
+# Preflight checks for x86_64 Fedora Server system
 
 set -euo pipefail
 
@@ -25,27 +25,23 @@ if [[ ! -f /etc/os-release ]]; then
 fi
 
 . /etc/os-release
-if [[ "$ID" != "ubuntu" ]]; then
-    error_exit "Unsupported OS: $ID. This setup is for Ubuntu only."
+if [[ "$ID" != "fedora" ]]; then
+    error_exit "Unsupported OS: $ID. This setup is for Fedora Server only."
 fi
 log_success "OS check passed: $ID $VERSION_ID"
 
-# Check Ubuntu version (24.04.x LTS recommended)
+# Check Fedora version (43 recommended)
 MAJOR=$(echo "$VERSION_ID" | cut -d. -f1)
-MINOR=$(echo "$VERSION_ID" | cut -d. -f2)
-if [[ -z "$MAJOR" || -z "$MINOR" ]]; then
-    error_exit "Cannot parse Ubuntu version from VERSION_ID=$VERSION_ID"
+if [[ -z "$MAJOR" ]]; then
+    error_exit "Cannot parse Fedora version from VERSION_ID=$VERSION_ID"
 fi
-if [[ $MAJOR -lt 24 ]]; then
-    error_exit "Ubuntu 24.04 or later required. Found: $VERSION_ID"
+if [[ $MAJOR -lt 43 ]]; then
+    error_exit "Fedora Server 43 or later required. Found: $VERSION_ID"
 fi
-if [[ "$VERSION_CODENAME" != "noble" ]]; then
-    log_warn "Non-noble codename detected: $VERSION_CODENAME (expected noble for 24.04.x)"
+if [[ $MAJOR -ne 43 ]]; then
+    log_warn "Recommended: Fedora Server 43 (found $VERSION_ID)"
 fi
-if [[ $MAJOR -eq 24 && $MINOR -ne 04 ]]; then
-    log_warn "Recommended: Ubuntu Server 24.04.x LTS (found $VERSION_ID)"
-fi
-log_success "Ubuntu version check passed: $VERSION_ID ($VERSION_CODENAME)"
+log_success "Fedora version check passed: $VERSION_ID"
 
 # Check internet connectivity
 if ! ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then

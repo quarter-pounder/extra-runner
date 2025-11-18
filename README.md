@@ -1,13 +1,13 @@
 # Extra-Runners
 
-Bootstrap scripts for setting up a spare laptop as a dedicated GitHub Actions self-hosted runner on Ubuntu x86_64.
+Bootstrap scripts for setting up a spare laptop as a dedicated GitHub Actions self-hosted runner on Fedora Server x86_64.
 
 ## Overview
 
 This repository provides automated setup scripts to configure a spare laptop as a GitHub Actions runner with:
 - Docker installation and optimization for CI/CD workloads
 - GitHub Actions self-hosted runner (Docker-based)
-- Security hardening (SSH, fail2ban)
+- Security hardening (SSH, fail2ban, firewalld)
 - Optional Node Exporter for monitoring integration
 
 ## Quick Start
@@ -26,13 +26,14 @@ sudo ./install.sh
 
 ## Prerequisites
 
-- Ubuntu Server 24.04.3 LTS (noble), x86_64
+- Fedora Server 43, x86_64
 - Root/sudo access
 - GitHub personal access token or organization admin access
 - Network connectivity
 
-Note:
-- Newer kernels in 24.04.x include better drivers for certain Realtek and MediaTek network adapters. Older Ubuntu releases may lack stable support for these devices, leading to missing NICs or unreliable connectivity during install/boot. Using 24.04.3 LTS mitigates these issues.
+### Why Fedora?
+
+Consumer laptops often ship with garbage-tier Realtek network chips and half-baked BIOS implementations. Fedora's rolling kernel updates and newer driver support make it easier to get these devices working reliably. Ubuntu's LTS release cycle can lag behind on kernel and driver updates, making it a pain to get newer or problematic hardware working, especially when you need to manually backport drivers or wait for the next LTS release.
 
 ## Repository Structure
 
@@ -41,9 +42,9 @@ extra-runners/
 ├── bootstrap/
 │   ├── windows/          # Pre-install Windows investigation
 │   │   └── trust-boundary.ps1
-│   ├── linux/           # Ubuntu OS installation and cleanup
+│   ├── linux/           # Fedora Server OS installation and cleanup
 │   │   ├── cleanup-laptop.sh
-│   │   ├── setup-ubuntu.sh
+│   │   ├── setup-fedora.sh
 │   │   ├── preflight.sh
 │   │   ├── install-core.sh
 │   │   ├── install-docker.sh
@@ -78,7 +79,7 @@ On Windows, investigate OEM/recovery partitions and firmware:
 
 ### Phase 2: Linux OS Installation
 
-After installing Ubuntu, run:
+After installing Fedora Server, run:
 
 ```bash
 sudo ./install-os.sh
@@ -86,13 +87,13 @@ sudo ./install-os.sh
 
 This runs:
 1. **cleanup-laptop.sh** - Investigate vendor-specific configurations (investigate-only by default)
-2. **setup-ubuntu.sh** - Initial Ubuntu OS configuration
-3. **preflight.sh** - System checks (x86_64 architecture, Ubuntu version)
+2. **setup-fedora.sh** - Initial Fedora Server OS configuration
+3. **preflight.sh** - System checks (x86_64 architecture, Fedora version)
 4. **install-core.sh** - Core system packages
 5. **install-docker.sh** - Docker installation
 6. **optimize-docker.sh** - Docker optimizations for CI/CD
 7. **verify.sh** - Verification checks
-8. **security-hardening.sh** - SSH and fail2ban configuration
+8. **security-hardening.sh** - SSH, fail2ban, and firewalld configuration
 
 ### Phase 3: Services Installation
 
@@ -134,7 +135,7 @@ Before running the setup, prepare:
    export DOCKER_ENABLED="true"
    ```
 
-3. **Optional OS Setup Variables** (for 01-setup-ubuntu.sh):
+3. **Optional OS Setup Variables** (for setup-fedora.sh):
    ```bash
    export HOSTNAME="laptop-runner"      # Set custom hostname
    export NEW_USER="runner"              # Create non-root user
@@ -314,7 +315,7 @@ This repository is simplified for single-purpose runner setup:
 - No config registry system
 - No full monitoring stack
 - No domain-based architecture
-- Focused on x86_64 Ubuntu laptops
+- Focused on x86_64 Fedora Server laptops
 
 ## License
 

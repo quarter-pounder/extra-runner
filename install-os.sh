@@ -1,5 +1,5 @@
 #!/bin/bash
-# Install and configure Ubuntu OS (post-install cleanup and setup)
+# Install and configure Fedora Server OS (post-install cleanup and setup)
 
 set -euo pipefail
 
@@ -16,12 +16,12 @@ fi
 # Source utils
 source "${BOOTSTRAP_DIR}/utils.sh"
 
-log_info "Starting Ubuntu OS installation and configuration..."
+log_info "Starting Fedora Server OS installation and configuration..."
 
 # Run Linux OS scripts in order
 SCRIPTS=(
     "cleanup-laptop.sh"
-    "setup-ubuntu.sh"
+    "setup-fedora.sh"
     "preflight.sh"
     "install-core.sh"
     "install-docker.sh"
@@ -41,5 +41,5 @@ for script in "${SCRIPTS[@]}"; do
     }
 done
 
-log_success "Ubuntu OS installation and configuration completed successfully!"
+log_success "Fedora Server OS installation and configuration completed successfully!"
 

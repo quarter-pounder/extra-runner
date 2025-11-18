@@ -185,7 +185,8 @@ fi
 ################################################################################
 
 log_info "Checking /etc/hosts..."
-HOST_VENDOR=$(grep -Ev '^(#|$|127\.0\.0\.1|::1)' /etc/hosts | safe_grep_i "vendor|oem|manufacturer|telemetry")
+HOSTS_CONTENT=$(grep -Ev '^(#|$|127\.0\.0\.1|::1)' /etc/hosts 2>/dev/null || true)
+HOST_VENDOR=$(echo "$HOSTS_CONTENT" | safe_grep_i "vendor|oem|manufacturer|telemetry")
 
 if [[ -n "$HOST_VENDOR" ]]; then
     log_warn "Vendor-like /etc/hosts entries:"

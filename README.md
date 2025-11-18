@@ -19,8 +19,8 @@ curl -fsSL https://repourl/main/install.sh | bash
 Or clone and run locally:
 
 ```bash
-git clone repo/extra-runners-bootstrap.git
-cd extra-runners-bootstrap
+git clone repo.git
+cd extra-runner
 sudo ./install.sh
 ```
 

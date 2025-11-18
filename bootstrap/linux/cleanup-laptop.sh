@@ -31,9 +31,17 @@ safe_find_exec() {
 ################################################################################
 
 log_info "Checking installed kernels..."
-INSTALLED_KERNELS=$(
-  dpkg -l | awk '/^ii/ && $2 ~ /^linux-image/ {print $2}' | sort -V || true
-)
+# Detect package manager and get installed kernels
+INSTALLED_KERNELS=""
+if command_exists dpkg; then
+    # Ubuntu/Debian
+    INSTALLED_KERNELS=$(dpkg -l | awk '/^ii/ && $2 ~ /^linux-image/ {print $2}' | sort -V || true)
+elif command_exists rpm; then
+    # Fedora/RHEL/CentOS
+    INSTALLED_KERNELS=$(rpm -qa | grep -E '^kernel-[0-9]' | sort -V || true)
+else
+    log_warn "Cannot detect package manager (dpkg/rpm not found). Skipping kernel check."
+fi
 
 VENDOR_KERNELS=$(echo "$INSTALLED_KERNELS" | safe_grep_i "vendor|oem|custom|manufacturer")
 

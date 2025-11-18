@@ -18,6 +18,28 @@ source "${BOOTSTRAP_DIR}/utils.sh"
 
 log_info "Starting services installation..."
 
+# Auto-load environment variables from .env files if present
+ENV_FILE="${SCRIPT_DIR}/.env"
+RUNNER_ENV_FILE="${SCRIPT_DIR}/runner/.env"
+
+load_env_file() {
+    local file="$1"
+    if [[ -f "$file" ]]; then
+        log_info "Loading environment variables from ${file}"
+        set -a
+        # shellcheck disable=SC1090
+        source "$file"
+        set +a
+        return 0
+    fi
+    return 1
+}
+
+# Prefer repo-level .env, fall back to runner/.env (for pre-created configs)
+if ! load_env_file "$ENV_FILE"; then
+    load_env_file "$RUNNER_ENV_FILE" || true
+fi
+
 # Check for required environment variables before runner setup
 if [[ -z "${RUNNER_TOKEN:-}" ]]; then
     log_warn "RUNNER_TOKEN not set. Runner setup will be skipped."

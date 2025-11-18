@@ -122,7 +122,7 @@ Before running the setup, prepare:
    - Repository: Settings → Actions → Runners → New self-hosted runner
    - Organization: Settings → Actions → Runners → New runner
 
-2. **Environment Variables**: Set in `runner/.env` or export before running:
+2. **Environment Variables**: Create a `.env` file in the repo root (auto-loaded), pre-populate `runner/.env`, or export before running:
    ```bash
    export RUNNER_NAME="laptop-runner-01"
    export RUNNER_TOKEN="runner_token_here"

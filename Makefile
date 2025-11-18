@@ -8,6 +8,10 @@ help: ## Show this help message
 	@echo "Available commands:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
+# =======================================
+# Runner specifics
+# =======================================
+
 logs: ## Show runner logs (follow mode)
 	docker compose -f $(COMPOSE_FILE) logs -f
 
@@ -63,3 +67,55 @@ node-exporter-logs: ## Show Node Exporter logs
 node-exporter-status: ## Show Node Exporter status
 	docker compose -f $(COMPOSE_FILE) -f $(RUNNER_DIR)/docker-compose.node-exporter.yml ps node-exporter
 
+# =======================================
+# Brightness Controls (host machine)
+# =======================================
+
+BACKLIGHT ?= $(shell ls /sys/class/backlight | head -n1)
+BR_DIR    = /sys/class/backlight/$(BACKLIGHT)
+
+brightness-get: ## Show current brightness and max brightness
+	@if [ -e "$(BR_DIR)/brightness" ]; then \
+		echo "Backlight: $(BACKLIGHT)"; \
+		echo -n "Current: "; cat $(BR_DIR)/brightness; \
+		echo -n "Max:     "; cat $(BR_DIR)/max_brightness; \
+	else \
+		echo "No backlight interface found."; exit 1; \
+	fi
+
+brightness-set: ## Set brightness (usage: make brightness-set VAL=100)
+	@if [ -z "$(VAL)" ]; then \
+		echo "Usage: make brightness-set VAL=<number>"; exit 1; \
+	fi
+	@if [ -e "$(BR_DIR)/brightness" ]; then \
+		echo "$(VAL)" | sudo tee $(BR_DIR)/brightness >/dev/null; \
+		echo "Set brightness to $(VAL)."; \
+	else \
+		echo "No backlight interface found."; exit 1; \
+	fi
+
+brightness-inc: ## Increase brightness by DELTA (usage: make brightness-inc DELTA=50)
+	@if [ -z "$(DELTA)" ]; then \
+		echo "Usage: make brightness-inc DELTA=<number>"; exit 1; \
+	fi
+	@if [ -e "$(BR_DIR)/brightness" ]; then \
+		B=$$(cat $(BR_DIR)/brightness); \
+		N=$$((B + $(DELTA))); \
+		echo $$N | sudo tee $(BR_DIR)/brightness >/dev/null; \
+		echo "Brightness increased to $$N."; \
+	else \
+		echo "No backlight interface found."; exit 1; \
+	fi
+
+brightness-dec: ## Decrease brightness by DELTA (usage: make brightness-dec DELTA=50)
+	@if [ -z "$(DELTA)" ]; then \
+		echo "Usage: make brightness-dec DELTA=<number>"; exit 1; \
+	fi
+	@if [ -e "$(BR_DIR)/brightness" ]; then \
+		B=$$(cat $(BR_DIR)/brightness); \
+		N=$$((B - $(DELTA))); \
+		echo $$N | sudo tee $(BR_DIR)/brightness >/dev/null; \
+		echo "Brightness decreased to $$N."; \
+	else \
+		echo "No backlight interface found."; exit 1; \
+	fi

@@ -32,7 +32,16 @@ dnf install -y -q dnf-plugins-core
 
 # Add Docker's official repository
 log_info "Adding Docker repository..."
-dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+RELEASEVER=$(rpm -E %fedora)
+BASEARCH=$(rpm -E %_arch)
+cat > /etc/yum.repos.d/docker-ce.repo <<EOF
+[docker-ce-stable]
+name=Docker CE Stable - \$basearch
+baseurl=https://download.docker.com/linux/fedora/${RELEASEVER}/\$basearch/stable
+enabled=1
+gpgcheck=1
+gpgkey=https://download.docker.com/linux/fedora/gpg
+EOF
 
 # Install Docker Engine
 log_info "Installing Docker Engine..."

@@ -119,3 +119,11 @@ brightness-dec: ## Decrease brightness by DELTA (usage: make brightness-dec DELT
 	else \
 		echo "No backlight interface found."; exit 1; \
 	fi
+
+BACKLIGHT := amdgpu_bl1
+
+brightness-zero: ## Set brightness to 0 (panel appears off but safe)
+	echo 0 | sudo tee /sys/class/backlight/$(BACKLIGHT)/brightness
+
+brightness-restore: ## Restore brightness to readable level
+	echo 20000 | sudo tee /sys/class/backlight/$(BACKLIGHT)/brightness

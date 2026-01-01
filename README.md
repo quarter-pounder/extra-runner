@@ -308,14 +308,7 @@ docker-compose down
 # Remove registration from GitHub UI
 ```
 
-## Differences from pi-forge
-
-This repository is simplified for single-purpose runner setup:
-- No Pi-specific optimizations
-- No config registry system
-- No full monitoring stack
-- No domain-based architecture
-- Focused on x86_64 Fedora Server laptops
+This repository is simplified for single-purpose runner setup.
 
 ## License
 

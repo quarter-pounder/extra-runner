@@ -1,4 +1,4 @@
-.PHONY: help logs status start stop restart pull ps shell
+.PHONY: help logs status start stop restart pull ps shell brightness-get brightness-set brightness-inc brightness-dec brightness-zero brightness-restore font-get font-set font-list font-size-inc font-size-dec lid-close-status lid-close-disable lid-close-restore
 
 # Default runner directory
 RUNNER_DIR ?= runner
@@ -127,3 +127,175 @@ brightness-zero: ## Set brightness to 0 (panel appears off but safe)
 
 brightness-restore: ## Restore brightness to readable level
 	echo 20000 | sudo tee /sys/class/backlight/$(BACKLIGHT)/brightness
+
+# =======================================
+# Font Controls (host machine console)
+# =======================================
+
+VCONSOLE_CONF = /etc/vconsole.conf
+FONT_DIR = /usr/share/kbd/consolefonts
+
+font-get: ## Show current console font
+	@if [ -f "$(VCONSOLE_CONF)" ]; then \
+		echo "Current console font configuration:"; \
+		grep -E "^FONT=" $(VCONSOLE_CONF) || echo "  FONT not set (using default)"; \
+		grep -E "^FONT_MAP=" $(VCONSOLE_CONF) || echo "  FONT_MAP not set"; \
+		grep -E "^FONT_UNIMAP=" $(VCONSOLE_CONF) || echo "  FONT_UNIMAP not set"; \
+	else \
+		echo "No vconsole.conf found. Creating default..."; \
+		sudo touch $(VCONSOLE_CONF); \
+		echo "FONT not set (using default)"; \
+	fi
+	@if command -v setfont >/dev/null 2>&1; then \
+		echo ""; \
+		echo "Currently active font:"; \
+		setfont 2>&1 | head -1 || echo "  Unable to determine active font"; \
+	fi
+
+font-set: ## Set console font (usage: make font-set FONT="lat9w-16")
+	@if [ -z "$(FONT)" ]; then \
+		echo "Usage: make font-set FONT=<font-name>"; \
+		echo "Example: make font-set FONT=lat9w-16"; \
+		echo "Use 'make font-list' to see available fonts"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(FONT_DIR)" ]; then \
+		echo "Font directory $(FONT_DIR) not found."; exit 1; \
+	fi
+	@if [ ! -f "$(FONT_DIR)/$(FONT).psf.gz" ] && [ ! -f "$(FONT_DIR)/$(FONT).psf" ]; then \
+		echo "Font '$(FONT)' not found in $(FONT_DIR)"; \
+		echo "Use 'make font-list' to see available fonts"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(VCONSOLE_CONF)" ]; then \
+		sudo touch $(VCONSOLE_CONF); \
+	fi
+	@if grep -q "^FONT=" $(VCONSOLE_CONF) 2>/dev/null; then \
+		sudo sed -i "s|^FONT=.*|FONT=$(FONT)|" $(VCONSOLE_CONF); \
+	else \
+		echo "FONT=$(FONT)" | sudo tee -a $(VCONSOLE_CONF) >/dev/null; \
+	fi
+	@if command -v setfont >/dev/null 2>&1; then \
+		sudo setfont $(FONT) 2>/dev/null || echo "Warning: Could not set font immediately (may require reboot)"; \
+	fi
+	@echo "Font set to $(FONT). Changes persist across reboots."
+
+font-list: ## List available console fonts
+	@if [ ! -d "$(FONT_DIR)" ]; then \
+		echo "Font directory $(FONT_DIR) not found."; exit 1; \
+	fi
+	@echo "Available console fonts:"; \
+	ls -1 $(FONT_DIR)/*.psf.gz $(FONT_DIR)/*.psf 2>/dev/null | \
+		sed 's|$(FONT_DIR)/||;s|\.psf\.gz$$||;s|\.psf$$||' | \
+		sort -u | \
+		awk '{printf "  %s\n", $$1}'
+
+font-size-inc: ## Increase font size (switch to larger font)
+	@CURRENT=$$(grep -E "^FONT=" $(VCONSOLE_CONF) 2>/dev/null | cut -d= -f2 || echo ""); \
+	if [ -z "$$CURRENT" ]; then \
+		echo "No font currently set. Use 'make font-set FONT=<name>' first."; \
+		exit 1; \
+	fi; \
+	if echo "$$CURRENT" | grep -q "8$$"; then \
+		NEW=$$(echo "$$CURRENT" | sed 's/8$$/14/'); \
+	elif echo "$$CURRENT" | grep -q "14$$"; then \
+		NEW=$$(echo "$$CURRENT" | sed 's/14$$/16/'); \
+	elif echo "$$CURRENT" | grep -q "16$$"; then \
+		NEW=$$(echo "$$CURRENT" | sed 's/16$$/18/'); \
+	elif echo "$$CURRENT" | grep -q "18$$"; then \
+		NEW=$$(echo "$$CURRENT" | sed 's/18$$/22/'); \
+	else \
+		echo "Current font '$$CURRENT' size not recognized. Use 'make font-set FONT=<name>' directly."; \
+		exit 1; \
+	fi; \
+	if [ -f "$(FONT_DIR)/$$NEW.psf.gz" ] || [ -f "$(FONT_DIR)/$$NEW.psf" ]; then \
+		$(MAKE) --no-print-directory font-set FONT="$$NEW"; \
+	else \
+		echo "Larger font '$$NEW' not found. Current font: $$CURRENT"; \
+		exit 1; \
+	fi
+
+font-size-dec: ## Decrease font size (switch to smaller font)
+	@CURRENT=$$(grep -E "^FONT=" $(VCONSOLE_CONF) 2>/dev/null | cut -d= -f2 || echo ""); \
+	if [ -z "$$CURRENT" ]; then \
+		echo "No font currently set. Use 'make font-set FONT=<name>' first."; \
+		exit 1; \
+	fi; \
+	if echo "$$CURRENT" | grep -q "22$$"; then \
+		NEW=$$(echo "$$CURRENT" | sed 's/22$$/18/'); \
+	elif echo "$$CURRENT" | grep -q "18$$"; then \
+		NEW=$$(echo "$$CURRENT" | sed 's/18$$/16/'); \
+	elif echo "$$CURRENT" | grep -q "16$$"; then \
+		NEW=$$(echo "$$CURRENT" | sed 's/16$$/14/'); \
+	elif echo "$$CURRENT" | grep -q "14$$"; then \
+		NEW=$$(echo "$$CURRENT" | sed 's/14$$/8/'); \
+	else \
+		echo "Current font '$$CURRENT' size not recognized. Use 'make font-set FONT=<name>' directly."; \
+		exit 1; \
+	fi; \
+	if [ -f "$(FONT_DIR)/$$NEW.psf.gz" ] || [ -f "$(FONT_DIR)/$$NEW.psf" ]; then \
+		$(MAKE) --no-print-directory font-set FONT="$$NEW"; \
+	else \
+		echo "Smaller font '$$NEW' not found. Current font: $$CURRENT"; \
+		exit 1; \
+	fi
+
+# =======================================
+# Lid Close Controls (host machine)
+# =======================================
+
+LOGIND_CONF = /etc/systemd/logind.conf
+LOGIND_CONF_BACKUP = /etc/systemd/logind.conf.bak
+
+lid-close-status: ## Show current lid close behavior
+	@if [ -f "$(LOGIND_CONF)" ]; then \
+		echo "Current lid close configuration:"; \
+		grep -E "^HandleLidSwitch" $(LOGIND_CONF) || echo "  HandleLidSwitch not set (using default: suspend)"; \
+		grep -E "^HandleLidSwitchExternalPower" $(LOGIND_CONF) || echo "  HandleLidSwitchExternalPower not set (using default: suspend)"; \
+		grep -E "^HandleLidSwitchDocked" $(LOGIND_CONF) || echo "  HandleLidSwitchDocked not set (using default: suspend)"; \
+	else \
+		echo "logind.conf not found. Using system defaults (suspend on lid close)."; \
+	fi
+
+lid-close-disable: ## Prevent suspend when lid is closed
+	@if [ ! -f "$(LOGIND_CONF)" ]; then \
+		sudo touch $(LOGIND_CONF); \
+	fi
+	@if [ ! -f "$(LOGIND_CONF_BACKUP)" ]; then \
+		sudo cp $(LOGIND_CONF) $(LOGIND_CONF_BACKUP); \
+		echo "Backed up original logind.conf"; \
+	fi
+	@if grep -q "^HandleLidSwitch" $(LOGIND_CONF) 2>/dev/null; then \
+		sudo sed -i 's/^HandleLidSwitch=.*/HandleLidSwitch=ignore/' $(LOGIND_CONF); \
+	else \
+		echo "HandleLidSwitch=ignore" | sudo tee -a $(LOGIND_CONF) >/dev/null; \
+	fi
+	@if grep -q "^HandleLidSwitchExternalPower" $(LOGIND_CONF) 2>/dev/null; then \
+		sudo sed -i 's/^HandleLidSwitchExternalPower=.*/HandleLidSwitchExternalPower=ignore/' $(LOGIND_CONF); \
+	else \
+		echo "HandleLidSwitchExternalPower=ignore" | sudo tee -a $(LOGIND_CONF) >/dev/null; \
+	fi
+	@if grep -q "^HandleLidSwitchDocked" $(LOGIND_CONF) 2>/dev/null; then \
+		sudo sed -i 's/^HandleLidSwitchDocked=.*/HandleLidSwitchDocked=ignore/' $(LOGIND_CONF); \
+	else \
+		echo "HandleLidSwitchDocked=ignore" | sudo tee -a $(LOGIND_CONF) >/dev/null; \
+	fi
+	@sudo systemctl restart systemd-logind || echo "Warning: Could not restart systemd-logind. Changes will take effect after reboot."
+	@echo "Lid close suspend disabled. System will continue running when lid is closed."
+
+lid-close-restore: ## Restore default behavior (suspend on lid close)
+	@if [ -f "$(LOGIND_CONF_BACKUP)" ]; then \
+		sudo cp $(LOGIND_CONF_BACKUP) $(LOGIND_CONF); \
+		sudo systemctl restart systemd-logind || echo "Warning: Could not restart systemd-logind. Changes will take effect after reboot."; \
+		echo "Restored original lid close behavior."; \
+	else \
+		if [ -f "$(LOGIND_CONF)" ]; then \
+			sudo sed -i '/^HandleLidSwitch=/d' $(LOGIND_CONF); \
+			sudo sed -i '/^HandleLidSwitchExternalPower=/d' $(LOGIND_CONF); \
+			sudo sed -i '/^HandleLidSwitchDocked=/d' $(LOGIND_CONF); \
+			sudo systemctl restart systemd-logind || echo "Warning: Could not restart systemd-logind. Changes will take effect after reboot."; \
+			echo "Removed lid close overrides. Using system defaults (suspend on lid close)."; \
+		else \
+			echo "No configuration to restore. System already using defaults."; \
+		fi; \
+	fi

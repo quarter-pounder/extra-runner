@@ -229,19 +229,39 @@ font-size-inc: ## Increase font size (switch to larger font)
 		echo "No font currently set. Use 'make font-set FONT=<name>' first."; \
 		exit 1; \
 	fi; \
-	if echo "$$CURRENT" | grep -q "8$$"; then \
-		NEW=$$(echo "$$CURRENT" | sed 's/8$$/14/'); \
-	elif echo "$$CURRENT" | grep -q "14$$"; then \
-		NEW=$$(echo "$$CURRENT" | sed 's/14$$/16/'); \
-	elif echo "$$CURRENT" | grep -q "16$$"; then \
-		NEW=$$(echo "$$CURRENT" | sed 's/16$$/18/'); \
-	elif echo "$$CURRENT" | grep -q "18$$"; then \
-		NEW=$$(echo "$$CURRENT" | sed 's/18$$/22/'); \
+	FONT_DIR_FOUND=""; \
+	if [ -d /usr/share/kbd/consolefonts ]; then \
+		FONT_DIR_FOUND="/usr/share/kbd/consolefonts"; \
+	elif [ -d /lib/kbd/consolefonts ]; then \
+		FONT_DIR_FOUND="/lib/kbd/consolefonts"; \
+	fi; \
+	if echo "$$CURRENT" | grep -qE "lat9w?-08$$|lat9w?-8$$"; then \
+		NEW="lat9-10"; \
+	elif echo "$$CURRENT" | grep -qE "lat9w?-10$$"; then \
+		NEW="lat9-12"; \
+	elif echo "$$CURRENT" | grep -qE "lat9w?-12$$"; then \
+		NEW="lat9-14"; \
+	elif echo "$$CURRENT" | grep -qE "lat9w?-14$$"; then \
+		NEW="lat9-16"; \
+	elif echo "$$CURRENT" | grep -qE "lat9w?-16$$"; then \
+		NEW="lat9-18"; \
+	elif echo "$$CURRENT" | grep -qE "lat9w?-18$$"; then \
+		NEW="lat9-16"; \
+		echo "Note: lat9-18 not available, using lat9-16 (largest available)"; \
 	elif echo "$$CURRENT" | grep -q "eurlatgr"; then \
-		NEW="lat9w-16"; \
+		NEW="lat9-16"; \
 	else \
-		echo "Current font '$$CURRENT' size not recognized. Use 'make font-set FONT=<name>' directly."; \
+		echo "Current font '$$CURRENT' size not recognized."; \
+		echo "Available lat9 fonts: lat9-08, lat9-10, lat9-12, lat9-14, lat9-16"; \
+		echo "Use 'make font-set FONT=<name>' directly."; \
 		exit 1; \
+	fi; \
+	if [ -n "$$FONT_DIR_FOUND" ] && [ ! -f "$$FONT_DIR_FOUND/$$NEW.psf.gz" ] && [ ! -f "$$FONT_DIR_FOUND/$$NEW.psf" ]; then \
+		echo "Font '$$NEW' not found. Trying alternative..."; \
+		if echo "$$CURRENT" | grep -qE "lat9w?-16$$|lat9w?-18$$"; then \
+			echo "Already at largest available font size."; \
+			exit 0; \
+		fi; \
 	fi; \
 	$(MAKE) --no-print-directory font-set FONT="$$NEW"
 
@@ -251,19 +271,37 @@ font-size-dec: ## Decrease font size (switch to smaller font)
 		echo "No font currently set. Use 'make font-set FONT=<name>' first."; \
 		exit 1; \
 	fi; \
-	if echo "$$CURRENT" | grep -q "22$$"; then \
-		NEW=$$(echo "$$CURRENT" | sed 's/22$$/18/'); \
-	elif echo "$$CURRENT" | grep -q "18$$"; then \
-		NEW=$$(echo "$$CURRENT" | sed 's/18$$/16/'); \
-	elif echo "$$CURRENT" | grep -q "16$$"; then \
-		NEW=$$(echo "$$CURRENT" | sed 's/16$$/14/'); \
-	elif echo "$$CURRENT" | grep -q "14$$"; then \
-		NEW=$$(echo "$$CURRENT" | sed 's/14$$/8/'); \
+	FONT_DIR_FOUND=""; \
+	if [ -d /usr/share/kbd/consolefonts ]; then \
+		FONT_DIR_FOUND="/usr/share/kbd/consolefonts"; \
+	elif [ -d /lib/kbd/consolefonts ]; then \
+		FONT_DIR_FOUND="/lib/kbd/consolefonts"; \
+	fi; \
+	if echo "$$CURRENT" | grep -qE "lat9w?-16$$|lat9w?-18$$"; then \
+		NEW="lat9-14"; \
+	elif echo "$$CURRENT" | grep -qE "lat9w?-14$$"; then \
+		NEW="lat9-12"; \
+	elif echo "$$CURRENT" | grep -qE "lat9w?-12$$"; then \
+		NEW="lat9-10"; \
+	elif echo "$$CURRENT" | grep -qE "lat9w?-10$$"; then \
+		NEW="lat9-08"; \
+	elif echo "$$CURRENT" | grep -qE "lat9w?-08$$|lat9w?-8$$"; then \
+		echo "Already at smallest available font size."; \
+		exit 0; \
 	elif echo "$$CURRENT" | grep -q "eurlatgr"; then \
-		NEW="lat9w-14"; \
+		NEW="lat9-14"; \
 	else \
-		echo "Current font '$$CURRENT' size not recognized. Use 'make font-set FONT=<name>' directly."; \
+		echo "Current font '$$CURRENT' size not recognized."; \
+		echo "Available lat9 fonts: lat9-08, lat9-10, lat9-12, lat9-14, lat9-16"; \
+		echo "Use 'make font-set FONT=<name>' directly."; \
 		exit 1; \
+	fi; \
+	if [ -n "$$FONT_DIR_FOUND" ] && [ ! -f "$$FONT_DIR_FOUND/$$NEW.psf.gz" ] && [ ! -f "$$FONT_DIR_FOUND/$$NEW.psf" ]; then \
+		echo "Font '$$NEW' not found. Trying alternative..."; \
+		if echo "$$CURRENT" | grep -qE "lat9w?-08$$|lat9w?-8$$"; then \
+			echo "Already at smallest available font size."; \
+			exit 0; \
+		fi; \
 	fi; \
 	$(MAKE) --no-print-directory font-set FONT="$$NEW"
 

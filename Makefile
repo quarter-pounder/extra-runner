@@ -133,7 +133,7 @@ brightness-restore: ## Restore brightness to readable level
 # =======================================
 
 VCONSOLE_CONF = /etc/vconsole.conf
-FONT_DIR = /usr/share/kbd/consolefonts
+FONT_DIR = $(shell if [ -d /usr/share/kbd/consolefonts ]; then echo /usr/share/kbd/consolefonts; elif [ -d /lib/kbd/consolefonts ]; then echo /lib/kbd/consolefonts; else echo /usr/share/kbd/consolefonts; fi)
 
 font-get: ## Show current console font
 	@if command -v localectl >/dev/null 2>&1; then \
@@ -163,20 +163,25 @@ font-set: ## Set console font (usage: make font-set FONT="lat9w-16")
 		echo "Use 'make font-list' to see available fonts"; \
 		exit 1; \
 	fi
-	@FONT_FOUND=false; \
-	if [ -d "$(FONT_DIR)" ]; then \
-		if [ -f "$(FONT_DIR)/$(FONT).psf.gz" ] || [ -f "$(FONT_DIR)/$(FONT).psf" ]; then \
+	@FONT_DIR_FOUND=""; \
+	if [ -d /usr/share/kbd/consolefonts ]; then \
+		FONT_DIR_FOUND="/usr/share/kbd/consolefonts"; \
+	elif [ -d /lib/kbd/consolefonts ]; then \
+		FONT_DIR_FOUND="/lib/kbd/consolefonts"; \
+	fi; \
+	FONT_FOUND=false; \
+	if [ -n "$$FONT_DIR_FOUND" ]; then \
+		if [ -f "$$FONT_DIR_FOUND/$(FONT).psf.gz" ] || [ -f "$$FONT_DIR_FOUND/$(FONT).psf" ]; then \
 			FONT_FOUND=true; \
 		fi; \
 	fi; \
-	if [ "$$FONT_FOUND" = "false" ] && [ -d "$(FONT_DIR)" ]; then \
-		echo "Font '$(FONT)' not found in $(FONT_DIR)"; \
+	if [ "$$FONT_FOUND" = "false" ] && [ -n "$$FONT_DIR_FOUND" ]; then \
+		echo "Font '$(FONT)' not found in $$FONT_DIR_FOUND"; \
 		echo "Use 'make font-list' to see available fonts"; \
 		exit 1; \
-	elif [ "$$FONT_FOUND" = "false" ] && [ ! -d "$(FONT_DIR)" ]; then \
-		echo "Warning: Font directory $(FONT_DIR) not found."; \
-		echo "Font will be set in config, but may not work until 'kbd' package is installed."; \
-		echo "Install fonts: sudo dnf install kbd"; \
+	elif [ "$$FONT_FOUND" = "false" ] && [ -z "$$FONT_DIR_FOUND" ]; then \
+		echo "Warning: Console font directories not found."; \
+		echo "Font will be set in config, but verify font name is correct."; \
 	fi
 	@if [ ! -f "$(VCONSOLE_CONF)" ]; then \
 		sudo touch $(VCONSOLE_CONF); \
@@ -192,17 +197,27 @@ font-set: ## Set console font (usage: make font-set FONT="lat9w-16")
 	@echo "Font set to $(FONT). Changes persist across reboots."
 
 font-list: ## List available console fonts
-	@if [ -d "$(FONT_DIR)" ]; then \
-		echo "Available console fonts:"; \
-		ls -1 $(FONT_DIR)/*.psf.gz $(FONT_DIR)/*.psf 2>/dev/null | \
-			sed 's|$(FONT_DIR)/||;s|\.psf\.gz$$||;s|\.psf$$||' | \
+	@FONT_DIR_FOUND=""; \
+	if [ -d /usr/share/kbd/consolefonts ]; then \
+		FONT_DIR_FOUND="/usr/share/kbd/consolefonts"; \
+	elif [ -d /lib/kbd/consolefonts ]; then \
+		FONT_DIR_FOUND="/lib/kbd/consolefonts"; \
+	fi; \
+	if [ -n "$$FONT_DIR_FOUND" ]; then \
+		echo "Available console fonts (from $$FONT_DIR_FOUND):"; \
+		ls -1 $$FONT_DIR_FOUND/*.psf.gz $$FONT_DIR_FOUND/*.psf 2>/dev/null | \
+			sed "s|$$FONT_DIR_FOUND/||;s|\.psf\.gz$$||;s|\.psf$$||" | \
 			sort -u | \
 			awk '{printf "  %s\n", $$1}'; \
 	else \
-		echo "Font directory $(FONT_DIR) not found."; \
-		echo "Install console fonts: sudo dnf install kbd"; \
+		echo "Console font directories not found:"; \
+		echo "  Checked: /usr/share/kbd/consolefonts"; \
+		echo "  Checked: /lib/kbd/consolefonts"; \
 		echo ""; \
-		echo "Common fonts (after installing kbd package):"; \
+		echo "kbd package appears installed but fonts directory missing."; \
+		echo "Try: rpm -ql kbd | grep consolefonts"; \
+		echo ""; \
+		echo "Common console fonts:"; \
 		echo "  lat9w-8, lat9w-14, lat9w-16, lat9w-18, lat9w-22"; \
 		echo "  eurlatgr (your current font), ter-112n, ter-114n, ter-116n, ter-118n, ter-120n"; \
 		echo "  sun12x22, sun8x16, UniCyr_8x16"; \
@@ -228,13 +243,7 @@ font-size-inc: ## Increase font size (switch to larger font)
 		echo "Current font '$$CURRENT' size not recognized. Use 'make font-set FONT=<name>' directly."; \
 		exit 1; \
 	fi; \
-	if [ ! -d "$(FONT_DIR)" ] || [ -f "$(FONT_DIR)/$$NEW.psf.gz" ] || [ -f "$(FONT_DIR)/$$NEW.psf" ]; then \
-		$(MAKE) --no-print-directory font-set FONT="$$NEW"; \
-	else \
-		echo "Larger font '$$NEW' not found. Current font: $$CURRENT"; \
-		echo "Install fonts: sudo dnf install kbd"; \
-		exit 1; \
-	fi
+	$(MAKE) --no-print-directory font-set FONT="$$NEW"
 
 font-size-dec: ## Decrease font size (switch to smaller font)
 	@CURRENT=$$(grep -E "^FONT=" $(VCONSOLE_CONF) 2>/dev/null | cut -d= -f2 | tr -d '"' || echo ""); \
@@ -256,13 +265,7 @@ font-size-dec: ## Decrease font size (switch to smaller font)
 		echo "Current font '$$CURRENT' size not recognized. Use 'make font-set FONT=<name>' directly."; \
 		exit 1; \
 	fi; \
-	if [ ! -d "$(FONT_DIR)" ] || [ -f "$(FONT_DIR)/$$NEW.psf.gz" ] || [ -f "$(FONT_DIR)/$$NEW.psf" ]; then \
-		$(MAKE) --no-print-directory font-set FONT="$$NEW"; \
-	else \
-		echo "Smaller font '$$NEW' not found. Current font: $$CURRENT"; \
-		echo "Install fonts: sudo dnf install kbd"; \
-		exit 1; \
-	fi
+	$(MAKE) --no-print-directory font-set FONT="$$NEW"
 
 # =======================================
 # Lid Close Controls (host machine)
